@@ -2,6 +2,10 @@
 
 Browser extension (Manifest V3) that opens a **pretty view source** for Next.js pages in a full tab with syntax highlighting.
 
+## Preview
+
+![Extension preview](preview.png)
+
 ## What it does
 
 - Detects Next.js sites (Pages Router via `__NEXT_DATA__`, App Router via flight/streaming signals, `_next` assets, and related markers).
