@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Next.js Pretty View Source</title>
+  <style>
+    :root {
+      --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
+      --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+      --cyan: #38bdf8; --green: #22c55e; --red: #ef4444;
+      --amber: #f59e0b; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; gap: 16px; height: 52px; flex-shrink: 0; }
+    .topbar-logo { font-size: 22px; }
+    .topbar-title { font-size: 15px; font-weight: 700; color: #f1f5f9; white-space: nowrap; }
+    .topbar-url { font-size: 11px; color: var(--text3); font-family: 'Consolas', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .badge { font-size: 11px; padding: 4px 12px; border-radius: 999px; font-weight: 700; color: #fff; background: var(--green); white-space: nowrap; }
+    .badge.no { background: var(--red); }
+    .badge.detecting { background: var(--amber); }
+    .router-tag { font-size: 11px; color: var(--text3); white-space: nowrap; }
+
+    .infobar { background: var(--bg); border-bottom: 1px solid var(--border); padding: 6px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .infobar-text { font-size: 11px; color: var(--text3); font-family: 'Consolas', monospace; flex: 1; }
+
+    .mode-group { display: flex; gap: 2px; background: var(--bg3); padding: 3px; border-radius: 7px; }
+    .mode-btn { padding: 4px 12px; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; background: transparent; color: var(--text3); transition: all 0.15s; white-space: nowrap; }
+    .mode-btn:hover { color: var(--text2); }
+    .mode-btn.active { background: var(--bg2); color: var(--cyan); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+    .code-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; }
+
+    pre { padding: 20px 0; font-size: 13px; line-height: 1.9; font-family: 'Consolas', 'Courier New', monospace; min-height: 100%; }
+
+    .line { display: flex; min-height: 1.9em; }
+    .line:hover { background: rgba(255,255,255,0.03); }
+    .ln { user-select: none; color: var(--text3); min-width: 52px; padding-right: 16px; text-align: right; flex-shrink: 0; font-size: 12px; border-right: 1px solid var(--border); margin-right: 16px; }
+    .lc { flex: 1; padding-right: 20px; }
+
+    /* Mode 1: no-wrap */
+    .code-wrap.mode-nowrap { overflow-x: auto; }
+    .code-wrap.mode-nowrap pre { white-space: pre; }
+    .code-wrap.mode-nowrap .lc { white-space: pre; overflow-x: visible; }
+
+    /* Mode 2: wrap */
+    .code-wrap.mode-wrap { overflow-x: hidden; }
+    .code-wrap.mode-wrap pre { white-space: pre-wrap; word-break: break-all; }
+    .code-wrap.mode-wrap .lc { white-space: pre-wrap; word-break: break-all; overflow-x: hidden; }
+
+    /* Mode 3: per-line scroll */
+    .code-wrap.mode-perline { overflow-x: hidden; }
+    .code-wrap.mode-perline pre { white-space: pre; }
+    .code-wrap.mode-perline .line { align-items: stretch; }
+    .code-wrap.mode-perline .lc { white-space: pre; overflow-x: auto; overflow-y: hidden; display: block; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .code-wrap.mode-perline .lc::-webkit-scrollbar { height: 3px; }
+    .code-wrap.mode-perline .lc::-webkit-scrollbar-track { background: transparent; }
+    .code-wrap.mode-perline .lc::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .ht { color: #f472b6; }
+    .ha { color: #fbbf24; }
+    .hv { color: #86efac; }
+    .hc { color: #64748b; font-style: italic; }
+    .hd { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="topbar-logo">&#9650;</span>
+    <span class="topbar-title">Next.js Pretty View Source</span>
+    <span class="topbar-url" id="topUrl">Loading...</span>
+    <div class="topbar-right">
+      <span class="badge detecting" id="badge">Detecting...</span>
+      <span class="router-tag" id="routerTag"></span>
+    </div>
+  </div>
+
+  <div class="infobar">
+    <span class="infobar-text" id="infoText">Loading...</span>
+    <div class="mode-group">
+      <button class="mode-btn active" id="btn-nowrap"  data-mode="nowrap">No Wrap</button>
+      <button class="mode-btn"        id="btn-wrap"    data-mode="wrap">Wrap</button>
+      <button class="mode-btn"        id="btn-perline" data-mode="perline">Per-line</button>
+    </div>
+  </div>
+
+  <div class="code-wrap mode-nowrap" id="codeWrap">
+    <pre id="html-out"><span style="color:#64748b">Loading...</span></pre>
+  </div>
+
+  <script src="viewer.js"></script>
+</body>
+</html>
